@@ -51,7 +51,7 @@ go install -v github.com/thd3r/SimpHttp/cmd/simphttp@latest
 
 | Flag	   | Description | Example |
 |----------|-------------|---------------------------------- |
-| -target  | Single target, file path, or stdin | hosts.txt/example.com |
+| -target  | Single target, file path, or stdin | hosts.txt or example.com |
 | -ports	 | Comma-separated list of ports | 8000,8080 (default: 80,443) |
 | -threads | Number of concurrent workers | 50 |
 | -timeout | Timeout per request (in seconds) | 10 |
