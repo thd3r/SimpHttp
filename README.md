@@ -4,7 +4,7 @@
 
 <p align="left">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-_red.svg"></a>
-  <a href="https://github.com/thd3r/SimpHttp/releases"><img src="https://img.shields.io/github/release/thd3r/fakjs.svg"></a>
+  <a href="https://github.com/thd3r/SimpHttp/releases"><img src="https://img.shields.io/github/release/thd3r/SimpHttp.svg"></a>
   <a href="https://x.com/thd3r"><img src="https://img.shields.io/twitter/follow/thd3r.svg?logo=twitter"></a>
   <a href="https://github.com/thd3r/SimpHttp/issues"><img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat"></a>
 
