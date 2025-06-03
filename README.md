@@ -14,7 +14,7 @@
 ╔═╗┬┌┬┐┌─┐╦ ╦┌┬┐┌┬┐┌─┐
 ╚═╗││││├─┘╠═╣ │  │ ├─┘
 ╚═╝┴┴ ┴┴  ╩ ╩ ┴  ┴ ┴
-          v0.1.0 latest
+          v0.1.1 latest
 ```
 
 **SimpHttp** is a high-performance, lightweight HTTP scanner designed to rapidly test multiple hosts and ports using concurrent HTTP/HTTPS requests. It's ideal for developers, security researchers, and sysadmins who need to quickly verify service availability across large target lists.
