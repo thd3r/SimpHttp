@@ -51,8 +51,7 @@ go install -v github.com/thd3r/SimpHttp/cmd/simphttp@latest
 
 | Flag	   | Description | Example |
 |----------|-------------|---------------------------------- |
-| -target  | Single target, file path, or stdin | hosts.txt or example.com |
-| -ports	 | Comma-separated list of ports | 8000,8080 (default: 80,443) |
+| -targets | Single target, file path, or stdin | hosts.txt or example.com |
 | -threads | Number of concurrent workers | 50 |
 | -timeout | Timeout per request (in seconds) | 10 |
 | -verbose | Enable verbose logging | -verbose |
@@ -67,17 +66,25 @@ echo example.com | simphttp
 ```
 
 ```sh
-cat hosts.txt | simphttp
+echo https://example.com | simphttp
+```
+
+```sh
+cat targets.txt | simphttp
 ```
 
 ### Or
 
 ```sh
-simphttp -target example.com
+simphttp -targets example.com
 ```
 
 ```sh
-simphttp -target hosts.txt
+simphttp -targets https://example.com
+```
+
+```sh
+simphttp -targets targets.txt
 ```
 
 ---
