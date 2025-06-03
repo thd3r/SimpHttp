@@ -7,12 +7,12 @@ import (
 	"github.com/thd3r/SimpHttp/pkg/net/client"
 )
 
-var CurrentVersion = "v0.1.0"
+var CurrentVersion = "v0.1.1"
 
 func Version() string {
 	clients := client.NewClient(10)
 
-	resp, err := clients.Do("GET", "https://api.github.com/repos/thd3r/simphttp/releases/latest")
+	resp, err := clients.Do("GET", "https://api.github.com/repos/thd3r/SimpHttp/releases/latest")
 	if err != nil {
 		return CurrentVersion + " " + ColoredText("magenta", "unknown")
 	}

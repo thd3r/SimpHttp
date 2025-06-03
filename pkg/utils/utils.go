@@ -16,8 +16,6 @@ func IsFile(path string) bool {
 func VerbosePrint(verbose bool, text string) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "%s", text)
-	} else {
-		return
 	}
 }
 

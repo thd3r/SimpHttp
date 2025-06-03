@@ -1,34 +1,26 @@
 package utils
 
 import (
+	"fmt"
 	"strings"
-
-	"github.com/fatih/color"
 )
 
 func ColoredText(c, text string) string {
 	switch strings.ToLower(c) {
 	case "red":
-		red := color.New(color.FgRed).SprintFunc()
-		return red(text)
+		return fmt.Sprintf("\033[31m%s\033[0m", text)
+	case "gray":
+		return fmt.Sprintf("\033[2m%s\033[0m", text)
 	case "blue":
-		blue := color.New(color.FgBlue).SprintFunc()
-		return blue(text)
-	case "bblue":
-		bblue := color.New(color.FgHiBlue).SprintFunc()
-		return bblue(text)
+		return fmt.Sprintf("\033[34m%s\033[0m", text)
 	case "magenta":
-		magenta := color.New(color.FgMagenta).SprintFunc()
-		return magenta(text)
+		return fmt.Sprintf("\033[35m%s\033[0m", text)
 	case "cyan":
-		cyan := color.New(color.FgCyan).SprintFunc()
-		return cyan(text)
+		return fmt.Sprintf("\033[36m%s\033[0m", text)
 	case "green":
-		green := color.New(color.FgGreen).SprintFunc()
-		return green(text)
+		return fmt.Sprintf("\033[32m%s\033[0m", text)
 	case "yellow":
-		yellow := color.New(color.FgYellow).SprintFunc()
-		return yellow(text)
+		return fmt.Sprintf("\033[33m%s\033[0m", text)
 	default:
 		return text
 	}

@@ -11,6 +11,7 @@ import (
 )
 
 type DataOutput struct {
+	Url      string  `json:"url"`
 	Proto    string  `json:"proto"`
 	Host     string  `json:"host"`
 	Status   *string `json:"status"`
@@ -43,6 +44,7 @@ func JsonReport(verbose bool, data <-chan DataOutput) {
 
 	for d := range data {
 		results.Output = append(results.Output, DataOutput{
+			Url:      d.Url,
 			Proto:    d.Proto,
 			Host:     d.Host,
 			Status:   d.Status,
