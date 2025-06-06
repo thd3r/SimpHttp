@@ -11,13 +11,14 @@ import (
 )
 
 type DataOutput struct {
-	Url      string  `json:"url"`
-	Proto    string  `json:"proto"`
-	Host     string  `json:"host"`
-	Status   *string `json:"status"`
-	SizeBody *string `json:"size_body"`
-	Redirect *string `json:"redirected_to"`
-	ErrorMsg *string `json:"error_message"`
+	Url      string `json:"url"`
+	Proto    string `json:"proto"`
+	Host     string `json:"host"`
+	Status   string `json:"status,omitempty"`
+	SizeBody string `json:"size_body,omitempty"`
+	Redirect string `json:"redirected_to,omitempty"`
+	IsError  bool   `json:"is_error"`
+	ErrorMsg string `json:"error_msg,omitempty"`
 }
 
 type DataReport struct {
@@ -50,6 +51,7 @@ func JsonReport(verbose bool, data <-chan DataOutput) {
 			Status:   d.Status,
 			SizeBody: d.SizeBody,
 			Redirect: d.Redirect,
+			IsError:  d.IsError,
 			ErrorMsg: d.ErrorMsg,
 		})
 	}

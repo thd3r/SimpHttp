@@ -7,7 +7,7 @@ import (
 	"github.com/thd3r/SimpHttp/pkg/net/client"
 )
 
-var CurrentVersion = "v0.1.1"
+var CurrentVersion = "v0.1.2"
 
 func Version() string {
 	clients := client.NewClient(10)

@@ -72,10 +72,10 @@ func NewSimpHttp(target string, threads, timeout int, verbose bool) *SimpHttpBas
 }
 
 func (base *SimpHttpBase) SimpHttpRun() {
-	urls := make(chan string)
-	hosts := make(chan string)
-	validHosts := make(chan string)
-	dataOutput := make(chan report.DataOutput)
+	urlsChan := make(chan string)
+	hostsChan := make(chan string)
+	validHostsChan := make(chan string)
+	dataOutputChan := make(chan report.DataOutput)
 
 	var validateHostWG sync.WaitGroup
 	for i := 0; i < base.Threads; i++ {
@@ -84,65 +84,65 @@ func (base *SimpHttpBase) SimpHttpRun() {
 		go func() {
 			defer validateHostWG.Done()
 
-			for host := range hosts {
-				base.validateHost(host, validHosts)
+			for host := range hostsChan {
+				base.validateHost(host, validHostsChan)
 			}
 		}()
 	}
 
-	var httpRobeWG sync.WaitGroup
+	var httpRunWG sync.WaitGroup
 	for i := 0; i < base.Threads; i++ {
-		httpRobeWG.Add(1)
+		httpRunWG.Add(1)
 
 		go func() {
-			defer httpRobeWG.Done()
+			defer httpRunWG.Done()
 
-			for host := range validHosts {
-				base.httpRobeWorker(host, dataOutput)
+			for validHostsChan != nil || urlsChan != nil {
+				select {
+				case host, ok := <-validHostsChan:
+					if !ok {
+						validHostsChan = nil
+						continue
+					}
+					base.httpRobeWorker(host, dataOutputChan)
+				case url, ok := <-urlsChan:
+					if !ok {
+						urlsChan = nil
+						continue
+					}
+					base.httpBasicWorker(url, dataOutputChan)
+				}
 			}
-		}()
-	}
 
-	var httpBasicWG sync.WaitGroup
-	for i := 0; i < base.Threads; i++ {
-		httpBasicWG.Add(1)
-
-		go func() {
-			defer httpBasicWG.Done()
-
-			for url := range urls {
-				base.httpBasicWorker(url, dataOutput)
-			}
 		}()
 	}
 
 	go func() {
 		for _, target := range base.Targets {
 			if base.isUrl(target) {
-				urls <- target
+				urlsChan <- target
 			} else {
-				hosts <- target
+				hostsChan <- target
 			}
 		}
-		close(urls)
-		close(hosts)
+		close(urlsChan)
+		close(hostsChan)
 	}()
 
 	go func() {
 		validateHostWG.Wait()
-		close(validHosts)
+		close(validHostsChan)
 	}()
 
 	go func() {
-		httpRobeWG.Wait()
-		httpBasicWG.Wait()
-		close(dataOutput)
+		httpRunWG.Wait()
+		close(dataOutputChan)
 	}()
 
-	report.JsonReport(base.Verbose, dataOutput)
+	report.JsonReport(base.Verbose, dataOutputChan)
 }
 
-func (base *SimpHttpBase) httpRobeWorker(host string, dataOutput chan<- report.DataOutput) {
+func (base *SimpHttpBase) httpRobeWorker(host string, dataOutputChan chan<- report.DataOutput) {
 	for _, proto := range []string{"http", "https"} {
 		utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: processing %s for %s\n", utils.ColoredText("blue", "info"), strings.ToUpper(proto), host))
 
@@ -150,11 +150,12 @@ func (base *SimpHttpBase) httpRobeWorker(host string, dataOutput chan<- report.D
 		if err != nil {
 			errMsg := fmt.Sprintf("fetching %s — %v", host, err)
 			utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: %s\n", utils.ColoredText("red", "eror"), errMsg))
-			dataOutput <- report.DataOutput{
+			dataOutputChan <- report.DataOutput{
 				Url:      fmt.Sprintf("%s://%s", proto, host),
 				Proto:    strings.ToUpper(proto),
 				Host:     host,
-				ErrorMsg: &errMsg,
+				ErrorMsg: errMsg,
+				IsError:  true,
 			}
 			if proto == "http" {
 				continue // try HTTPS if HTTP fails
@@ -166,12 +167,13 @@ func (base *SimpHttpBase) httpRobeWorker(host string, dataOutput chan<- report.D
 		if err != nil {
 			errMsg := fmt.Sprintf("reading response body for %s — %v", host, err)
 			utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: %s\n", utils.ColoredText("red", "eror"), errMsg))
-			dataOutput <- report.DataOutput{
+			dataOutputChan <- report.DataOutput{
 				Url:      fmt.Sprintf("%s://%s", proto, host),
 				Proto:    strings.ToUpper(proto),
 				Host:     host,
-				Status:   &resp.Status,
-				ErrorMsg: &errMsg,
+				Status:   resp.Status,
+				ErrorMsg: errMsg,
+				IsError:  true,
 			}
 			if proto == "http" {
 				continue // try HTTPS if reading HTTP body fails
@@ -180,14 +182,14 @@ func (base *SimpHttpBase) httpRobeWorker(host string, dataOutput chan<- report.D
 		}
 
 		sizeBody := fmt.Sprintf("%dw", size)
-		base.processResponse(resp, host, proto, sizeBody, dataOutput)
+		base.processResponse(resp, host, proto, sizeBody, dataOutputChan)
 
 		resp.Body.Close()
 		break // stop after success
 	}
 }
 
-func (base *SimpHttpBase) httpBasicWorker(url string, dataOutput chan<- report.DataOutput) {
+func (base *SimpHttpBase) httpBasicWorker(url string, dataOutputChan chan<- report.DataOutput) {
 	utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: processing %s\n", utils.ColoredText("blue", "info"), url))
 
 	parse, err := base.parseUrl(url)
@@ -200,11 +202,12 @@ func (base *SimpHttpBase) httpBasicWorker(url string, dataOutput chan<- report.D
 	if err != nil {
 		errMsg := fmt.Sprintf("fetching %s — %v", url, err)
 		utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: %s\n", utils.ColoredText("red", "eror"), errMsg))
-		dataOutput <- report.DataOutput{
+		dataOutputChan <- report.DataOutput{
 			Url:      url,
 			Proto:    strings.ToUpper(parse.Scheme),
 			Host:     parse.Host,
-			ErrorMsg: &errMsg,
+			ErrorMsg: errMsg,
+			IsError:  true,
 		}
 		return
 	}
@@ -214,20 +217,21 @@ func (base *SimpHttpBase) httpBasicWorker(url string, dataOutput chan<- report.D
 	if err != nil {
 		errMsg := fmt.Sprintf("reading response body for %s — %v", url, err)
 		utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: %s\n", utils.ColoredText("red", "eror"), errMsg))
-		dataOutput <- report.DataOutput{
+		dataOutputChan <- report.DataOutput{
 			Url:      url,
 			Proto:    strings.ToUpper(parse.Scheme),
 			Host:     parse.Host,
-			ErrorMsg: &errMsg,
+			ErrorMsg: errMsg,
+			IsError:  true,
 		}
 		return
 	}
 
 	sizeBody := fmt.Sprintf("%dw", size)
-	base.processResponse(resp, parse.Host, parse.Scheme, sizeBody, dataOutput)
+	base.processResponse(resp, parse.Host, parse.Scheme, sizeBody, dataOutputChan)
 }
 
-func (base *SimpHttpBase) validateHost(host string, validHosts chan<- string) {
+func (base *SimpHttpBase) validateHost(host string, validHostsChan chan<- string) {
 	var once sync.Once
 
 	for _, port := range []string{"80", "443"} {
@@ -235,7 +239,7 @@ func (base *SimpHttpBase) validateHost(host string, validHosts chan<- string) {
 			utils.VerbosePrint(base.Verbose, fmt.Sprintf("%s: valid host %s with port %s\n", utils.ColoredText("blue", "info"), host, port))
 
 			once.Do(func() {
-				validHosts <- host
+				validHostsChan <- host
 			})
 
 		} else {
@@ -244,58 +248,58 @@ func (base *SimpHttpBase) validateHost(host string, validHosts chan<- string) {
 	}
 }
 
-func (base *SimpHttpBase) processResponse(resp *http.Response, host, proto, sizeBody string, dataOutput chan<- report.DataOutput) {
+func (base *SimpHttpBase) processResponse(resp *http.Response, host, proto, sizeBody string, dataOutputChan chan<- report.DataOutput) {
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
 		fmt.Printf("%s %s %s\n", resp.Request.URL, utils.ColoredText("green", strconv.Itoa(resp.StatusCode)), utils.ColoredText("gray", sizeBody))
-		dataOutput <- report.DataOutput{
+		dataOutputChan <- report.DataOutput{
 			Url:      fmt.Sprintf("%s://%s", proto, host),
 			Proto:    strings.ToUpper(proto),
 			Host:     host,
-			Status:   &resp.Status,
-			SizeBody: &sizeBody,
+			Status:   resp.Status,
+			SizeBody: sizeBody,
 		}
 	case resp.StatusCode >= 300 && resp.StatusCode < 400:
 		location := resp.Header.Get("Location")
 
 		if !strings.HasPrefix(location, "http") {
 			fmt.Printf("%s %s %s => %s\n", resp.Request.URL, utils.ColoredText("blue", strconv.Itoa(resp.StatusCode)), utils.ColoredText("gray", sizeBody), utils.ColoredText("cyan", fmt.Sprintf("%s%s", resp.Request.URL, location)))
-			dataOutput <- report.DataOutput{
+			dataOutputChan <- report.DataOutput{
 				Url:      fmt.Sprintf("%s://%s", proto, host),
 				Proto:    strings.ToUpper(proto),
 				Host:     host,
-				Status:   &resp.Status,
-				SizeBody: &sizeBody,
-				Redirect: &location,
+				Status:   resp.Status,
+				SizeBody: sizeBody,
+				Redirect: location,
 			}
 		} else {
 			fmt.Printf("%s %s %s => %s\n", resp.Request.URL, utils.ColoredText("blue", strconv.Itoa(resp.StatusCode)), utils.ColoredText("gray", sizeBody), utils.ColoredText("cyan", location))
-			dataOutput <- report.DataOutput{
+			dataOutputChan <- report.DataOutput{
 				Url:      fmt.Sprintf("%s://%s", proto, host),
 				Proto:    strings.ToUpper(proto),
 				Host:     host,
-				Status:   &resp.Status,
-				SizeBody: &sizeBody,
-				Redirect: &location,
+				Status:   resp.Status,
+				SizeBody: sizeBody,
+				Redirect: location,
 			}
 		}
 	case resp.StatusCode >= 400 && resp.StatusCode < 500:
 		fmt.Printf("%s %s %s\n", resp.Request.URL, utils.ColoredText("magenta", strconv.Itoa(resp.StatusCode)), utils.ColoredText("gray", sizeBody))
-		dataOutput <- report.DataOutput{
+		dataOutputChan <- report.DataOutput{
 			Url:      fmt.Sprintf("%s://%s", proto, host),
 			Proto:    strings.ToUpper(proto),
 			Host:     host,
-			Status:   &resp.Status,
-			SizeBody: &sizeBody,
+			Status:   resp.Status,
+			SizeBody: sizeBody,
 		}
 	case resp.StatusCode >= 500 && resp.StatusCode < 600:
 		fmt.Printf("%s %s %s\n", resp.Request.URL, utils.ColoredText("yellow", strconv.Itoa(resp.StatusCode)), utils.ColoredText("gray", sizeBody))
-		dataOutput <- report.DataOutput{
+		dataOutputChan <- report.DataOutput{
 			Url:      fmt.Sprintf("%s://%s", proto, host),
 			Proto:    strings.ToUpper(proto),
 			Host:     host,
-			Status:   &resp.Status,
-			SizeBody: &sizeBody,
+			Status:   resp.Status,
+			SizeBody: sizeBody,
 		}
 	}
 }
